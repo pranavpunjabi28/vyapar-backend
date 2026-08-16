@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: vyapar
+      POSTGRES_USER: vyapar
+      POSTGRES_PASSWORD: vyapar
+    ports: [ "5432:5432" ]
+    volumes: [ "postgres-data:/var/lib/postgresql/data" ]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U vyapar" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports: [ "9000:9000", "9001:9001" ]
+    volumes: [ "minio-data:/data" ]
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/vyapar
+      DATABASE_USERNAME: vyapar
+      DATABASE_PASSWORD: vyapar
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_PUBLIC_ENDPOINT: http://localhost:9000
+      STORAGE_SIGNED_URL_TTL_SECONDS: 900
+      STORAGE_MAX_FILE_SIZE_BYTES: 5242880
+      REPORT_MAX_RANGE_DAYS: 366
+      REPORT_MAX_EXPORT_ROWS: 100000
+      JWT_SECRET: local-only-change-before-deploying-0123456789
+    ports: [ "8080:8080" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  minio-data:

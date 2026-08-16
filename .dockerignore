@@ -1,0 +1,7 @@
+.gradle
+build
+.idea
+.git
+vypar ss
+*.iml
+.DS_Store
