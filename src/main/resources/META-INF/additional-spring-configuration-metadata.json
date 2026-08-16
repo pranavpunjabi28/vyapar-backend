@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "app.storage.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enables S3-compatible media storage and media API services."
+    }
+  ]
+}
