@@ -2,9 +2,15 @@
 
 A generic, multi-business POS and operations backend built with Java 21, Spring Boot 4.1, PostgreSQL, and MinIO.
 
+The React and TypeScript application is maintained as a separate Git repository. During local development it can be
+checked out at `frontend/`; that complete directory is ignored by this backend repository. It includes a reviewable
+demo experience for the dashboard, catalog, POS cart, checkout, orders, reports, and settings while the remaining
+forms are connected to the backend incrementally.
+
 ## What is implemented
 
-- Email/password registration, login, JWT access tokens, rotating refresh tokens, logout, and password changes
+- Email/password registration, login, in-memory JWT access tokens, rotating HttpOnly refresh cookies, logout, and
+  password changes
 - Businesses, separate outlets, owner/staff roles, outlet assignments, and expiring invitation codes
 - Categories, products, private product images, ingredients, recipes, customers, and suppliers
 - Draft/post/cancel purchase workflow and an auditable inventory ledger
@@ -43,9 +49,33 @@ docker compose up postgres minio
 ./gradlew bootRun
 ```
 
+### Frontend preview
+
+Install the frontend dependencies and start Vite in a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` to register, sign in, or restore an existing backend session. Open
+`http://localhost:5173/?demo=1` for the isolated interactive demo. The Vite development server proxies `/api` requests
+to the Spring Boot API at `http://localhost:8080`. Copy `frontend/.env.example` to `frontend/.env` when
+environment-specific frontend configuration is required. Screens after authentication still use representative data
+and will be connected to their feature APIs incrementally.
+
+Create a production frontend bundle with:
+
+```bash
+cd frontend
+npm run build
+```
+
 ## First API workflow
 
-1. `POST /api/v1/auth/register` creates an owner account and returns access/refresh tokens.
+1. `POST /api/v1/auth/register` creates an owner account, returns an access token, and sets the rotating refresh token
+   as an HttpOnly SameSite cookie.
 2. Send `Authorization: Bearer <accessToken>` on protected requests.
 3. `POST /api/v1/businesses` creates a business.
 4. `POST /api/v1/businesses/{businessId}/outlets` creates an outlet.
@@ -74,6 +104,10 @@ curl -X POST http://localhost:8080/api/v1/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"email":"owner@example.com","password":"change-me-now","displayName":"Owner"}'
 ```
+
+Browser authentication keeps the short-lived access token in memory. `POST /api/v1/auth/refresh` uses the cookie,
+rotates it, and returns a new access token; it accepts no request body. `POST /api/v1/auth/logout` revokes and clears the
+cookie. See [the authentication contract](docs/AUTHENTICATION.md) for the request/response shapes and session flow.
 
 ## Important business rules
 
@@ -116,6 +150,8 @@ shared     audit entities, pagination, API errors
 - Use a managed PostgreSQL database and a private S3-compatible bucket. The media API stores stable object keys and
   exposes expiring signed URLs, so MinIO can be replaced by AWS S3 without changing persisted references.
 - Serve the API behind HTTPS and use a high-entropy JWT secret from a secret manager.
+- Set `REFRESH_COOKIE_SECURE=true` outside local HTTP development. Use exact trusted CORS origins; credentialed browser
+  requests are enabled for those configured origins.
 - Add email delivery around the returned staff invitation code before public launch.
 - AWS Cognito, payment gateways, KOT, item-level GST, accounting, expenses, and offline synchronization are
   intentionally deferred.

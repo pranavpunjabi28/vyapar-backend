@@ -1,0 +1,22 @@
+{
+  "properties": [
+    {
+      "name": "app.storage.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Enables S3-compatible media storage and media API services."
+    },
+    {
+      "name": "app.security.refresh-cookie-name",
+      "type": "java.lang.String",
+      "defaultValue": "vyapar_refresh",
+      "description": "Host-only HttpOnly cookie name used for rotating browser refresh tokens."
+    },
+    {
+      "name": "app.security.refresh-cookie-secure",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Adds the Secure flag to the refresh cookie; this must be true in shared and production HTTPS environments."
+    }
+  ]
+}

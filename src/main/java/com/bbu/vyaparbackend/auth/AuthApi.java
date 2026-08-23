@@ -23,18 +23,15 @@ public final class AuthApi {
         }
     }
 
-    public record Refresh(@NotBlank String refreshToken) {
-    }
-
     public record PasswordChange(@NotBlank String currentPassword,
                                  @NotBlank @Size(min = 8, max = 100) String newPassword) {
     }
 
-    public record Tokens(String accessToken, String refreshToken, Instant accessTokenExpiresAt, String userId,
-                         String email, String displayName) {
-        static Tokens from(AuthCommands.Tokens tokens) {
-            return new Tokens(tokens.accessToken(), tokens.refreshToken(), tokens.accessTokenExpiresAt(), tokens.userId(),
-                    tokens.email(), tokens.displayName());
+    public record Session(String accessToken, Instant accessTokenExpiresAt, UserView user) {
+        static Session from(AuthCommands.Tokens tokens) {
+            return new Session(tokens.accessToken(), tokens.accessTokenExpiresAt(),
+                    new UserView(tokens.userId(), tokens.email(), tokens.displayName(),
+                            tokens.passwordChangeRequired()));
         }
     }
 

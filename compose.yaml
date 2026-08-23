@@ -40,6 +40,8 @@ services:
       REPORT_MAX_RANGE_DAYS: 366
       REPORT_MAX_EXPORT_ROWS: 100000
       JWT_SECRET: local-only-change-before-deploying-0123456789
+      REFRESH_COOKIE_SECURE: "false"
+      REFRESH_COOKIE_NAME: vyapar_refresh
     ports: [ "8080:8080" ]
     depends_on:
       postgres:

@@ -1,6 +1,9 @@
 HELP.md
 .gradle
 build/
+
+# The React application is maintained in its own Git repository.
+frontend/
 .DS_Store
 **/.DS_Store
 *.log

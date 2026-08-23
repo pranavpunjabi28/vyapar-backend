@@ -68,9 +68,10 @@ public class AuthService {
     }
 
     public AuthCommands.Tokens refresh(String rawToken) {
-        RefreshToken old = refreshTokens.findByTokenHash(hash(rawToken)).orElseThrow(() -> ApiException.invalid("Invalid refresh token"));
+        RefreshToken old = refreshTokens.findByTokenHash(hash(rawToken))
+                .orElseThrow(() -> ApiException.unauthorized("Session is invalid or expired"));
         if (old.getRevokedAt() != null || old.getExpiresAt().isBefore(Instant.now()))
-            throw ApiException.invalid("Refresh token expired or revoked");
+            throw ApiException.unauthorized("Session is invalid or expired");
         old.setRevokedAt(Instant.now());
         return issue(old.getUser());
     }
@@ -98,7 +99,8 @@ public class AuthService {
         refresh.setTokenHash(hash(rawRefresh));
         refresh.setExpiresAt(now.plus(refreshDays, ChronoUnit.DAYS));
         refreshTokens.save(refresh);
-        return new AuthCommands.Tokens(access, rawRefresh, expiry, user.getId(), user.getEmail(), user.getDisplayName());
+        return new AuthCommands.Tokens(access, rawRefresh, expiry, user.getId(), user.getEmail(),
+                user.getDisplayName(), user.isPasswordChangeRequired());
     }
 
     private String normalize(String email) {

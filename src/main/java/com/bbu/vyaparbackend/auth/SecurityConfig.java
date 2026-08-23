@@ -49,7 +49,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityProblemHandler problems) {
         return http.csrf(AbstractHttpConfigurer::disable).cors(cors -> {
                 })
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -57,12 +57,16 @@ public class SecurityConfig {
                         .requestMatchers(ApiEndpoints.Auth.ROOT + ApiEndpoints.Auth.REGISTER,
                                 ApiEndpoints.Auth.ROOT + ApiEndpoints.Auth.LOGIN,
                                 ApiEndpoints.Auth.ROOT + ApiEndpoints.Auth.REFRESH,
+                                ApiEndpoints.Auth.ROOT + ApiEndpoints.Auth.LOGOUT,
                                 ApiEndpoints.Auth.INVITATIONS_PUBLIC,
                                 ApiEndpoints.Documentation.SWAGGER, ApiEndpoints.Documentation.SWAGGER_HTML,
                                 ApiEndpoints.Documentation.OPEN_API, ApiEndpoints.Documentation.HEALTH).permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> {
-                }))
+                }).authenticationEntryPoint(problems).accessDeniedHandler(problems))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(problems)
+                        .accessDeniedHandler(problems))
                 .build();
     }
 
@@ -73,6 +77,7 @@ public class SecurityConfig {
         config.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type"));
         config.setExposedHeaders(java.util.List.of("Content-Disposition"));
+        config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

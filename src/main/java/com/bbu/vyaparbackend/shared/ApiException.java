@@ -23,6 +23,10 @@ public class ApiException extends RuntimeException {
                 ErrorMessages.Messages.FORBIDDEN);
     }
 
+    public static ApiException unauthorized(String message) {
+        return new ApiException(HttpStatus.UNAUTHORIZED, ErrorMessages.Codes.UNAUTHORIZED, message);
+    }
+
     public static ApiException conflict(String message) {
         return new ApiException(HttpStatus.CONFLICT, ErrorMessages.Codes.CONFLICT, message);
     }
