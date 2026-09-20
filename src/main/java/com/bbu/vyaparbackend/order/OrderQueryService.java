@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -25,18 +27,47 @@ import static com.bbu.vyaparbackend.shared.Pageables.requireAllowedSort;
 public class OrderQueryService {
     private final SalesOrderRepository orders;
     private final OrderItemRepository items;
+    private final OrderItemAddonRepository itemAddons;
 
-    OrderQueryService(SalesOrderRepository orders, OrderItemRepository items) {
+    OrderQueryService(SalesOrderRepository orders, OrderItemRepository items,
+                      OrderItemAddonRepository itemAddons) {
         this.orders = orders;
         this.items = items;
+        this.itemAddons = itemAddons;
     }
 
     @Transactional(readOnly = true)
     public Page<SalesOrder> list(Outlet outlet, Pageable pageable) {
+        return list(outlet, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SalesOrder> list(Outlet outlet, LocalDate date, Pageable pageable) {
         pageable = requireAllowedSort(pageable,
                 Set.of("id", "createdAt", "closedAt", "invoiceNumber", "status", "total"),
                 Sort.by(Sort.Direction.DESC, "createdAt"));
+        if (date != null) {
+            DateRange range = dateRange(outlet, date);
+            return orders.findAllByOutletIdAndArchivedFalseAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                    outlet.getId(), range.from(), range.to(), pageable);
+        }
         return orders.findAllByOutletIdAndArchivedFalse(outlet.getId(), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public OrderApi.DailySummaryView dailySummary(Outlet outlet, LocalDate date) {
+        DateRange range = dateRange(outlet, date);
+        DailyOrderSummaryProjection summary = orders.dailySummary(outlet.getId(), range.from(), range.to());
+        return new OrderApi.DailySummaryView(date, summary.getTotalOrders(), summary.getHeldOrders(),
+                summary.getPreparingOrders(), summary.getCompletedOrders(), summary.getCancelledOrders(),
+                summary.getUnpaidOrders(), summary.getCompletedSales());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SalesOrder> recentSubmitted(Outlet outlet, LocalDate date) {
+        DateRange range = dateRange(outlet, date);
+        return orders.findTop5ByOutletIdAndArchivedFalseAndStatusNotAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+                outlet.getId(), OrderStatus.DRAFT, range.from(), range.to());
     }
 
     @Transactional(readOnly = true)
@@ -83,6 +114,18 @@ public class OrderQueryService {
     }
 
     @Transactional(readOnly = true)
+    public List<OrderItemAddon> addons(String orderItemId) {
+        return itemAddons.findAllByOrderItemIdAndArchivedFalseOrderByCreatedAtAscIdAsc(orderItemId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, List<OrderItemAddon>> addonsByOrderItemIds(Collection<String> orderItemIds) {
+        if (orderItemIds.isEmpty()) return Map.of();
+        return itemAddons.findAllByOrderItemIdInAndArchivedFalseOrderByCreatedAtAscIdAsc(orderItemIds).stream()
+                .collect(Collectors.groupingBy(addon -> addon.getOrderItem().getId()));
+    }
+
+    @Transactional(readOnly = true)
     public OrderItem requireItem(SalesOrder order, String itemId) {
         return items.findById(itemId).filter(item -> item.getOrder().getId().equals(order.getId()))
                 .orElseThrow(() -> ApiException.notFound("Order item"));
@@ -105,5 +148,13 @@ public class OrderQueryService {
     }
 
     public record Summary(long orders, BigDecimal sales) {
+    }
+
+    private DateRange dateRange(Outlet outlet, LocalDate date) {
+        ZoneId zone = ZoneId.of(outlet.getTimezone());
+        return new DateRange(date.atStartOfDay(zone).toInstant(), date.plusDays(1).atStartOfDay(zone).toInstant());
+    }
+
+    private record DateRange(Instant from, Instant to) {
     }
 }

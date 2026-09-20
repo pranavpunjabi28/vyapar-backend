@@ -15,7 +15,9 @@ interface BusinessRepository extends JpaRepository<Business, String> {
 
 interface OutletRepository extends JpaRepository<Outlet, String> {
     @EntityGraph(attributePaths = "business")
-    List<Outlet> findAllByBusinessIdAndArchivedFalse(String businessId);
+    List<Outlet> findAllByBusinessIdAndArchivedFalseOrderByNameAscIdAsc(String businessId);
+
+    Optional<Outlet> findFirstByBusinessIdAndArchivedFalseOrderByCreatedAtAscIdAsc(String businessId);
 
     @Override
     @EntityGraph(attributePaths = "business")
@@ -28,10 +30,10 @@ interface OutletRepository extends JpaRepository<Outlet, String> {
 
 interface MembershipRepository extends JpaRepository<Membership, String> {
     @EntityGraph(attributePaths = {"business", "user"})
-    Optional<Membership> findByBusinessIdAndUserIdAndArchivedFalse(String businessId, String userId);
+    Optional<Membership> findByBusinessIdAndUserIdAndArchivedFalseAndBusinessArchivedFalse(String businessId, String userId);
 
     @EntityGraph(attributePaths = {"business", "user"})
-    List<Membership> findAllByUserIdAndArchivedFalse(String userId);
+    List<Membership> findAllByUserIdAndArchivedFalseAndBusinessArchivedFalse(String userId);
 
     boolean existsByBusinessIdAndUserIdAndArchivedFalse(String businessId, String userId);
 

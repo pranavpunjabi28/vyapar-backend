@@ -55,7 +55,10 @@ public final class ApiEndpoints {
         public static final String CATEGORIES = "/categories";
         public static final String CATEGORY = "/categories/{id}";
         public static final String PRODUCTS = "/products";
+        public static final String PRODUCTS_BATCH = "/products/batch";
         public static final String PRODUCT = "/products/{id}";
+        public static final String ADDON_GROUPS = "/addon-groups";
+        public static final String ADDON_GROUP = "/addon-groups/{id}";
         public static final String INGREDIENTS = "/ingredients";
         public static final String INGREDIENT = "/ingredients/{id}";
         public static final String RECIPE = "/products/{id}/recipe";
@@ -82,8 +85,10 @@ public final class ApiEndpoints {
 
     public static final class Order {
         public static final String ROOT = Outlet.ROOT + "/orders";
+        public static final String DAILY_SUMMARY = "/summary";
         public static final String BY_ID = "/{id}";
         public static final String HOLD = "/{id}/hold";
+        public static final String PREPARE = "/{id}/prepare";
         public static final String CHECKOUT = "/{id}/checkout";
         public static final String PAYMENTS = "/{id}/payments";
         public static final String CANCEL = "/{id}/cancel";
@@ -100,6 +105,8 @@ public final class ApiEndpoints {
         public static final String ROOT = Outlet.ROOT + "/reports";
         public static final String ORDERS = "/orders";
         public static final String DASHBOARD = "/dashboard";
+        public static final String DASHBOARD_SUMMARY = "/dashboard/summary";
+        public static final String DASHBOARD_INSIGHTS = "/dashboard/insights";
         public static final String ITEMS = "/items";
         public static final String STOCK = "/stock";
         public static final String ORDERS_CSV = "/orders.csv";
@@ -113,7 +120,8 @@ public final class ApiEndpoints {
     public static final class Media {
         public static final String ROOT = API_V1;
         public static final String BUSINESS_LOGO = "/businesses/{businessId}/logo";
-        public static final String PRODUCT_IMAGE = "/outlets/{outletId}/products/{productId}/image";
+        public static final String PRODUCT_IMAGES = "/outlets/{outletId}/products/{productId}/images";
+        public static final String PRODUCT_IMAGE = PRODUCT_IMAGES + "/{imageId}";
 
         private Media() {
         }

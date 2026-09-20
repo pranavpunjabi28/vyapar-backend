@@ -2,6 +2,7 @@ package com.bbu.vyaparbackend.business;
 
 import com.bbu.vyaparbackend.auth.User;
 import com.bbu.vyaparbackend.shared.ApiException;
+import com.bbu.vyaparbackend.shared.RequestLogContext;
 import org.springframework.stereotype.Service;
 
 import java.util.EnumSet;
@@ -19,9 +20,10 @@ public class TenantAccess {
     }
 
     public Membership business(User user, String businessId, Role... allowed) {
-        Membership membership = memberships.findByBusinessIdAndUserIdAndArchivedFalse(businessId, user.getId()).orElseThrow(ApiException::forbidden);
+        Membership membership = memberships.findByBusinessIdAndUserIdAndArchivedFalseAndBusinessArchivedFalse(businessId, user.getId()).orElseThrow(ApiException::forbidden);
         if (allowed.length > 0 && !EnumSet.of(allowed[0], allowed).contains(membership.getRole()))
             throw ApiException.forbidden();
+        RequestLogContext.merchant(membership.getBusiness().getId());
         return membership;
     }
 
@@ -30,6 +32,7 @@ public class TenantAccess {
         Membership membership = business(user, outlet.getBusiness().getId(), allowed);
         if (membership.getRole() != Role.OWNER && !assignments.existsByMembershipIdAndOutletIdAndArchivedFalse(membership.getId(), outletId))
             throw ApiException.forbidden();
+        RequestLogContext.outlet(outlet.getId());
         return outlet;
     }
 }

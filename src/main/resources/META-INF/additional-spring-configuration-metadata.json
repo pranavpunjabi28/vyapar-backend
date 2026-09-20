@@ -5,6 +5,77 @@
       "type": "java.lang.Boolean",
       "defaultValue": true,
       "description": "Enables S3-compatible media storage and media API services."
+    },
+    {
+      "name": "app.storage.public-endpoint",
+      "type": "java.lang.String",
+      "description": "Browser-reachable S3-compatible endpoint embedded in signed media URLs."
+    },
+    {
+      "name": "app.storage.region",
+      "type": "java.lang.String",
+      "defaultValue": "us-east-1",
+      "description": "S3-compatible bucket region used to sign media URLs without contacting the public endpoint."
+    },
+    {
+      "name": "app.storage.max-product-images",
+      "type": "java.lang.Integer",
+      "defaultValue": 6,
+      "description": "Maximum number of active images stored for one menu product."
+    },
+    {
+      "name": "app.security.refresh-cookie-name",
+      "type": "java.lang.String",
+      "defaultValue": "vyapar_refresh",
+      "description": "Host-only HttpOnly cookie name used for rotating browser refresh tokens."
+    },
+    {
+      "name": "app.security.refresh-cookie-secure",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Adds the Secure flag to the refresh cookie; this must be true in shared and production HTTPS environments."
+    },
+    {
+      "name": "app.dashboard.worker.minimum-events",
+      "type": "java.lang.Integer",
+      "defaultValue": 100,
+      "description": "Pending event count that triggers dashboard projection before the maximum wait expires."
+    },
+    {
+      "name": "app.dashboard.worker.maximum-wait-ms",
+      "type": "java.lang.Long",
+      "defaultValue": 300000,
+      "description": "Maximum age of the oldest dashboard event before a projection run starts."
+    },
+    {
+      "name": "app.dashboard.worker.trigger-check-ms",
+      "type": "java.lang.Long",
+      "defaultValue": 10000,
+      "description": "Interval for the lightweight pending-dashboard-event threshold check."
+    },
+    {
+      "name": "app.dashboard.worker.batch-size",
+      "type": "java.lang.Integer",
+      "defaultValue": 100,
+      "description": "Maximum number of dashboard events processed in one transaction."
+    },
+    {
+      "name": "app.dashboard.worker.max-batches-per-run",
+      "type": "java.lang.Integer",
+      "defaultValue": 20,
+      "description": "Maximum bounded batches drained after one dashboard worker trigger."
+    },
+    {
+      "name": "app.logging.http.include-bodies",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Includes bounded, recursively redacted JSON request and response bodies in HTTP completion logs."
+    },
+    {
+      "name": "app.logging.http.max-body-bytes",
+      "type": "java.lang.Integer",
+      "defaultValue": 8192,
+      "description": "Maximum JSON body bytes considered for one sanitized HTTP request or response log field."
     }
   ]
 }

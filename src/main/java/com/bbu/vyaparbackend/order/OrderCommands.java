@@ -9,7 +9,7 @@ public final class OrderCommands {
     private OrderCommands() {
     }
 
-    public record Line(String productId, BigDecimal quantity, String note) {
+    public record Line(String productId, BigDecimal quantity, String note, List<String> addonOptionIds) {
     }
 
     public record Save(String tableReference, String customerId, DiscountType discountType, BigDecimal discountValue,
@@ -20,6 +20,9 @@ public final class OrderCommands {
     }
 
     public record Checkout(String customerId, List<Payment> payments) {
+    }
+
+    public record Prepare(List<Payment> payments) {
     }
 
     public record RefundLine(String orderItemId, BigDecimal quantity) {

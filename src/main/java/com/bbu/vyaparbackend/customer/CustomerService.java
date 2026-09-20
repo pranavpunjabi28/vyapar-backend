@@ -56,8 +56,8 @@ public class CustomerService {
     }
 
     private void apply(Customer customer, CustomerCommand command) {
-        customer.setName(command.name());
-        customer.setPhone(command.phone());
+        customer.setName(command.name().trim());
+        customer.setPhone(command.phone() == null || command.phone().isBlank() ? null : command.phone().trim());
         customer.setEmail(command.email());
         customer.setAddress(command.address());
     }

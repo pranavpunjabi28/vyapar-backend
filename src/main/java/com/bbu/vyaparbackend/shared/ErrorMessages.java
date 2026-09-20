@@ -5,6 +5,7 @@ public final class ErrorMessages {
     }
 
     public static final class Codes {
+        public static final String UNAUTHORIZED = "unauthorized";
         public static final String NOT_FOUND = "not_found";
         public static final String FORBIDDEN = "forbidden";
         public static final String CONFLICT = "conflict";
@@ -19,6 +20,7 @@ public final class ErrorMessages {
     }
 
     public static final class Messages {
+        public static final String UNAUTHORIZED = "Authentication is required";
         public static final String FORBIDDEN = "You do not have permission for this operation";
         public static final String VALIDATION_FAILED = "One or more fields are invalid";
         public static final String DATA_CONFLICT = "The operation conflicts with existing data";

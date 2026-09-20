@@ -32,6 +32,9 @@ interface PurchaseItemRepository extends JpaRepository<PurchaseItem, String> {
 }
 
 interface InventoryMovementRepository extends JpaRepository<InventoryMovement, String> {
+    @Query("select m from InventoryMovement m join fetch m.ingredient where m.outlet.id=:outletId and m.referenceType='ORDER' and m.referenceId=:orderId and m.type='SALE' and m.archived=false order by m.createdAt,m.id")
+    List<InventoryMovement> orderSales(@Param("outletId") String outletId, @Param("orderId") String orderId);
+
     @Query("select coalesce(sum(m.quantity),0) from InventoryMovement m where m.outlet.id=:outletId and m.ingredient.id=:ingredientId and m.archived=false")
     BigDecimal balance(@Param("outletId") String outletId, @Param("ingredientId") String ingredientId);
 

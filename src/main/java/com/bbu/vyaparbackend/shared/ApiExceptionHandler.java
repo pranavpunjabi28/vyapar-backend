@@ -21,7 +21,7 @@ public class ApiExceptionHandler {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());
         detail.setType(URI.create("https://api.vyapar.local/problems/" + ex.getCode()));
         detail.setTitle(ex.getCode());
-        return detail;
+        return withRequestId(detail);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -34,7 +34,7 @@ public class ApiExceptionHandler {
                         error -> error.getDefaultMessage() == null ? "invalid" : error.getDefaultMessage(),
                         (first, ignored) -> first));
         detail.setProperty(JsonKeys.ERRORS, errors);
-        return detail;
+        return withRequestId(detail);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -42,7 +42,7 @@ public class ApiExceptionHandler {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 ErrorMessages.Messages.DATA_CONFLICT);
         detail.setTitle(ErrorMessages.Codes.DATA_CONFLICT);
-        return detail;
+        return withRequestId(detail);
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
@@ -50,7 +50,7 @@ public class ApiExceptionHandler {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 ErrorMessages.Messages.CONCURRENT_UPDATE);
         detail.setTitle(ErrorMessages.Codes.CONCURRENT_UPDATE);
-        return detail;
+        return withRequestId(detail);
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MaxUploadSizeExceededException.class})
@@ -58,6 +58,12 @@ public class ApiExceptionHandler {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 ErrorMessages.Messages.MALFORMED_REQUEST);
         detail.setTitle(ErrorMessages.Codes.INVALID_REQUEST);
+        return withRequestId(detail);
+    }
+
+    private ProblemDetail withRequestId(ProblemDetail detail) {
+        String requestId = RequestLogContext.requestId();
+        if (requestId != null) detail.setProperty(JsonKeys.REQUEST_ID, requestId);
         return detail;
     }
 }

@@ -35,6 +35,8 @@ public class SalesOrder extends BaseEntity {
     @Column(nullable = false)
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
     private String tableReference;
+    @Column(nullable = false)
+    private long orderNumber;
     private String invoiceNumber;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -52,5 +54,8 @@ public class SalesOrder extends BaseEntity {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal dueAmount = BigDecimal.ZERO;
     private Instant closedAt;
+    private Instant preparedAt;
     private Instant cancelledAt;
+    @Column(nullable = false)
+    private long dashboardRevision;
 }

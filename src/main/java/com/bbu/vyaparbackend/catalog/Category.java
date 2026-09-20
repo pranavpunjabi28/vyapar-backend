@@ -2,7 +2,6 @@ package com.bbu.vyaparbackend.catalog;
 
 import com.bbu.vyaparbackend.business.Outlet;
 import com.bbu.vyaparbackend.shared.BaseEntity;
-import com.bbu.vyaparbackend.shared.DbFields;
 import com.bbu.vyaparbackend.shared.PrefixedId;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -10,7 +9,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {DbFields.OUTLET_ID, DbFields.NAME}))
 @Getter
 @Setter
 @NoArgsConstructor

@@ -1,7 +1,11 @@
 package com.bbu.vyaparbackend.auth;
 
 import com.bbu.vyaparbackend.shared.ApiException;
+import com.bbu.vyaparbackend.shared.LogMessages;
 import com.bbu.vyaparbackend.shared.PrefixedIdGenerator;
+import com.bbu.vyaparbackend.shared.RequestLogContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -22,6 +26,8 @@ import java.util.Base64;
 @Service
 @Transactional
 public class AuthService {
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
     private final PasswordEncoder passwords;
@@ -56,27 +62,43 @@ public class AuthService {
         user.setDisplayName(request.displayName().trim());
         user.setPasswordHash(passwords.encode(request.password()));
         users.save(user);
+        RequestLogContext.user(user.getId());
+        log.info(LogMessages.AUTH_REGISTERED, user.getId());
         return issue(user);
     }
 
     public AuthCommands.Tokens login(AuthCommands.Login request) {
         User user = users.findByEmailIgnoreCase(normalize(request.email())).filter(u -> !u.isArchived())
-                .orElseThrow(() -> new ApiException(org.springframework.http.HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid email or password"));
-        if (!passwords.matches(request.password(), user.getPasswordHash()))
+                .orElseThrow(() -> {
+                    log.warn(LogMessages.AUTH_LOGIN_FAILED);
+                    return new ApiException(org.springframework.http.HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid email or password");
+                });
+        if (!passwords.matches(request.password(), user.getPasswordHash())) {
+            log.warn(LogMessages.AUTH_LOGIN_FAILED);
             throw new ApiException(org.springframework.http.HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid email or password");
+        }
+        RequestLogContext.user(user.getId());
+        log.info(LogMessages.AUTH_LOGIN_SUCCEEDED, user.getId());
         return issue(user);
     }
 
     public AuthCommands.Tokens refresh(String rawToken) {
-        RefreshToken old = refreshTokens.findByTokenHash(hash(rawToken)).orElseThrow(() -> ApiException.invalid("Invalid refresh token"));
+        RefreshToken old = refreshTokens.findByTokenHash(hash(rawToken))
+                .orElseThrow(() -> ApiException.unauthorized("Session is invalid or expired"));
         if (old.getRevokedAt() != null || old.getExpiresAt().isBefore(Instant.now()))
-            throw ApiException.invalid("Refresh token expired or revoked");
+            throw ApiException.unauthorized("Session is invalid or expired");
         old.setRevokedAt(Instant.now());
+        RequestLogContext.user(old.getUser().getId());
+        log.info(LogMessages.AUTH_REFRESHED, old.getUser().getId());
         return issue(old.getUser());
     }
 
     public void logout(String rawToken) {
-        refreshTokens.findByTokenHash(hash(rawToken)).ifPresent(token -> token.setRevokedAt(Instant.now()));
+        refreshTokens.findByTokenHash(hash(rawToken)).ifPresent(token -> {
+            token.setRevokedAt(Instant.now());
+            RequestLogContext.user(token.getUser().getId());
+            log.info(LogMessages.AUTH_LOGGED_OUT, token.getUser().getId());
+        });
     }
 
     public void changePassword(User user, String current, String replacement) {
@@ -84,6 +106,7 @@ public class AuthService {
             throw ApiException.invalid("Current password is incorrect");
         user.setPasswordHash(passwords.encode(replacement));
         user.setPasswordChangeRequired(false);
+        log.info(LogMessages.AUTH_PASSWORD_CHANGED, user.getId());
     }
 
     private AuthCommands.Tokens issue(User user) {
@@ -98,7 +121,8 @@ public class AuthService {
         refresh.setTokenHash(hash(rawRefresh));
         refresh.setExpiresAt(now.plus(refreshDays, ChronoUnit.DAYS));
         refreshTokens.save(refresh);
-        return new AuthCommands.Tokens(access, rawRefresh, expiry, user.getId(), user.getEmail(), user.getDisplayName());
+        return new AuthCommands.Tokens(access, rawRefresh, expiry, user.getId(), user.getEmail(),
+                user.getDisplayName(), user.isPasswordChangeRequired());
     }
 
     private String normalize(String email) {

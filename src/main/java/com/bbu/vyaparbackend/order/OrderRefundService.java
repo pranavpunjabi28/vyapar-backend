@@ -5,7 +5,12 @@ import com.bbu.vyaparbackend.business.Outlet;
 import com.bbu.vyaparbackend.inventory.InventoryLedgerService;
 import com.bbu.vyaparbackend.payment.Refund;
 import com.bbu.vyaparbackend.payment.RefundService;
+import com.bbu.vyaparbackend.report.DashboardEventService;
+import com.bbu.vyaparbackend.report.DashboardEventType;
 import com.bbu.vyaparbackend.shared.ApiException;
+import com.bbu.vyaparbackend.shared.LogMessages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,14 +18,19 @@ import java.math.BigDecimal;
 
 @Service
 public class OrderRefundService {
+    private static final Logger log = LoggerFactory.getLogger(OrderRefundService.class);
+
     private final OrderQueryService orders;
     private final RefundService refunds;
     private final InventoryLedgerService inventory;
+    private final DashboardEventService dashboardEvents;
 
-    public OrderRefundService(OrderQueryService orders, RefundService refunds, InventoryLedgerService inventory) {
+    public OrderRefundService(OrderQueryService orders, RefundService refunds, InventoryLedgerService inventory,
+                              DashboardEventService dashboardEvents) {
         this.orders = orders;
         this.refunds = refunds;
         this.inventory = inventory;
+        this.dashboardEvents = dashboardEvents;
     }
 
     @Transactional
@@ -46,6 +56,9 @@ public class OrderRefundService {
         BigDecimal totalRefund = already.add(refund.getAmount());
         order.setPaymentStatus(totalRefund.compareTo(order.getPaidAmount()) >= 0
                 ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED);
+        dashboardEvents.recordOrderChanged(order, DashboardEventType.REFUND_RECORDED);
+        log.info(LogMessages.REFUND_RECORDED, refund.getId(), order.getId(), refund.getAmount(),
+                refund.isRestoreStock());
         return refund;
     }
 }

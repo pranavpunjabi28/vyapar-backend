@@ -6,6 +6,7 @@ import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public final class OrderApi {
@@ -14,13 +15,15 @@ public final class OrderApi {
 
     public record OrderLine(@NotNull String productId,
                             @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
-                            @Size(max = 500) String note) {
+                            @Size(max = 500) String note,
+                            @Size(max = 50) List<@NotBlank String> addonOptionIds) {
         OrderCommands.Line toCommand() {
-            return new OrderCommands.Line(productId, quantity, note);
+            return new OrderCommands.Line(productId, quantity, note,
+                    addonOptionIds == null ? List.of() : addonOptionIds);
         }
     }
 
-    public record OrderRequest(String tableReference, String customerId, DiscountType discountType,
+    public record OrderRequest(@Size(max = 120) String tableReference, String customerId, DiscountType discountType,
                                @DecimalMin("0") BigDecimal discountValue,
                                @NotEmpty List<@Valid OrderLine> items) {
         OrderCommands.Save toCommand() {
@@ -43,6 +46,12 @@ public final class OrderApi {
         }
     }
 
+    public record PrepareRequest(@NotNull @Size(max = 10) List<@Valid PaymentLine> payments) {
+        OrderCommands.Prepare toCommand() {
+            return new OrderCommands.Prepare(payments.stream().map(PaymentLine::toCommand).toList());
+        }
+    }
+
     public record RefundLine(@NotNull String orderItemId,
                              @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity) {
         OrderCommands.RefundLine toCommand() {
@@ -59,21 +68,33 @@ public final class OrderApi {
         }
     }
 
+    public record OrderItemAddonView(String id, String addonGroupId, String addonOptionId, String groupName,
+                                     String optionName, BigDecimal unitPrice) {
+    }
+
     public record OrderItemView(String id, String productId, String productName, BigDecimal unitPrice,
                                 BigDecimal quantity,
-                                BigDecimal lineTotal, String note) {
+                                BigDecimal lineTotal, String note, List<OrderItemAddonView> addons) {
     }
 
     public record PaymentView(String id, PaymentMethod method, BigDecimal amount, String customMethod, String reference,
                               Instant createdAt) {
     }
 
-    public record OrderView(String id, OrderStatus status, PaymentStatus paymentStatus, String tableReference,
-                            String invoiceNumber, String customerId, DiscountType discountType,
+    public record OrderView(String id, long orderNumber, OrderStatus status, PaymentStatus paymentStatus, String tableReference,
+                            String invoiceNumber, String customerId, String customerName, String customerPhone,
+                            DiscountType discountType,
                             BigDecimal discountValue,
                             BigDecimal subtotal, BigDecimal discountAmount, BigDecimal total, BigDecimal paidAmount,
-                            BigDecimal dueAmount, Instant createdAt, Instant closedAt, List<OrderItemView> items,
+                            BigDecimal dueAmount, boolean cancellable, Instant cancellationDeadline,
+                            Instant createdAt, Instant preparedAt, Instant closedAt,
+                            List<OrderItemView> items,
                             List<PaymentView> payments) {
+    }
+
+    public record DailySummaryView(LocalDate date, long totalOrders, long heldOrders, long preparingOrders,
+                                   long completedOrders, long cancelledOrders, long unpaidOrders,
+                                   BigDecimal completedSales) {
     }
 
     public record RefundItemView(String orderItemId, BigDecimal quantity) {

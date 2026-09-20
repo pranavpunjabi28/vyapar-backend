@@ -5,7 +5,7 @@ import com.bbu.vyaparbackend.business.Membership;
 import com.bbu.vyaparbackend.business.Outlet;
 import com.bbu.vyaparbackend.catalog.CatalogManagementService;
 import com.bbu.vyaparbackend.catalog.CatalogQueryService;
-import com.bbu.vyaparbackend.catalog.Product;
+import com.bbu.vyaparbackend.catalog.ProductImage;
 import com.bbu.vyaparbackend.shared.ApiException;
 import com.bbu.vyaparbackend.shared.PrefixedIdGenerator;
 import org.slf4j.Logger;
@@ -19,6 +19,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -31,15 +33,18 @@ public class MediaService {
     private final CatalogQueryService catalog;
     private final CatalogManagementService catalogManagement;
     private final long maxFileSize;
+    private final int maxProductImages;
 
     public MediaService(ObjectStorage storage, BusinessManagementService businesses, CatalogQueryService catalog,
                         CatalogManagementService catalogManagement,
-                        @Value("${app.storage.max-file-size-bytes:5242880}") long maxFileSize) {
+                        @Value("${app.storage.max-file-size-bytes:5242880}") long maxFileSize,
+                        @Value("${app.storage.max-product-images:6}") int maxProductImages) {
         this.storage = storage;
         this.businesses = businesses;
         this.catalog = catalog;
         this.catalogManagement = catalogManagement;
         this.maxFileSize = maxFileSize;
+        this.maxProductImages = maxProductImages;
     }
 
     @Transactional
@@ -58,19 +63,50 @@ public class MediaService {
     }
 
     @Transactional
-    public MediaApi.FileResponse replaceProductImage(Outlet outlet, String productId, MultipartFile file) {
-        ValidatedUpload upload = validate(file);
-        Product product = catalog.product(outlet, productId);
-        String oldKey = product.getImageKey();
-        String key = "businesses/" + outlet.getBusiness().getId() + "/products/" + objectName(upload.extension());
-        storeAndRegisterCleanup(key, oldKey, upload);
-        catalogManagement.setProductImage(outlet, productId, key);
-        return MediaApi.FileResponse.from(storage.sign(key));
+    public List<MediaApi.ProductImageResponse> addProductImages(Outlet outlet, String productId,
+                                                                 List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) throw ApiException.invalid("Select at least one product image");
+        List<ProductImage> existingImages = catalog.productImages(outlet, productId);
+        if (existingImages.size() + files.size() > maxProductImages) {
+            throw ApiException.invalid("A product can have at most " + maxProductImages + " images");
+        }
+        List<MediaApi.ProductImageResponse> responses = new ArrayList<>();
+        int displayOrder = existingImages.stream().mapToInt(ProductImage::getDisplayOrder).max().orElse(-1) + 1;
+        for (MultipartFile file : files) {
+            ValidatedUpload upload = validate(file);
+            String key = "businesses/" + outlet.getBusiness().getId() + "/products/" + productId + "/"
+                    + objectName(upload.extension());
+            storeAndRegisterCleanup(key, null, upload);
+            ProductImage image = catalogManagement.addProductImage(outlet, productId, key, displayOrder++);
+            responses.add(toResponse(image));
+        }
+        return responses;
     }
 
     @Transactional(readOnly = true)
-    public MediaApi.FileResponse productImage(Outlet outlet, String productId) {
-        return signed(catalog.product(outlet, productId).getImageKey(), "Product image");
+    public List<MediaApi.ProductImageResponse> productImages(Outlet outlet, String productId) {
+        return catalog.productImages(outlet, productId).stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public void deleteProductImage(Outlet outlet, String productId, String imageId) {
+        ProductImage image = catalogManagement.archiveProductImage(outlet, productId, imageId);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                if (!catalog.productImageKeyInUse(image.getObjectKey())) safeDelete(image.getObjectKey());
+            }
+        });
+    }
+
+    public MediaApi.FileResponse sign(String key) {
+        return MediaApi.FileResponse.from(storage.sign(key));
+    }
+
+    private MediaApi.ProductImageResponse toResponse(ProductImage image) {
+        MediaApi.FileResponse signed = sign(image.getObjectKey());
+        return new MediaApi.ProductImageResponse(image.getId(), signed.key(), signed.downloadUrl(),
+                signed.expiresAt(), image.getDisplayOrder());
     }
 
     private MediaApi.FileResponse signed(String key, String resource) {

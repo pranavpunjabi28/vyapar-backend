@@ -10,7 +10,8 @@ public final class BusinessCommands {
     }
 
     public record OutletData(String name, String phone, String address, String currency, String timezone, String upiId,
-                             String receiptFooter) {
+                             String receiptFooter, OrderCancellationPolicy preparingOrderCancellationPolicy,
+                             Integer preparingOrderCancellationMinutes) {
     }
 
     public record Invitation(String email, Role role, List<String> outletIds) {

@@ -11,6 +11,6 @@ public final class AuthCommands {
     }
 
     public record Tokens(String accessToken, String refreshToken, java.time.Instant accessTokenExpiresAt,
-                         String userId, String email, String displayName) {
+                         String userId, String email, String displayName, boolean passwordChangeRequired) {
     }
 }

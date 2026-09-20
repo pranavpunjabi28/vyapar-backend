@@ -19,7 +19,8 @@ final class BusinessMapper {
     static BusinessApi.OutletView toView(Outlet outlet) {
         return new BusinessApi.OutletView(outlet.getId(), outlet.getBusiness().getId(), outlet.getName(),
                 outlet.getPhone(), outlet.getAddress(), outlet.getCurrency(), outlet.getTimezone(), outlet.getUpiId(),
-                outlet.getReceiptFooter());
+                outlet.getReceiptFooter(), outlet.getPreparingOrderCancellationPolicy(),
+                outlet.getPreparingOrderCancellationMinutes());
     }
 
     static BusinessApi.StaffView toView(Membership membership, List<OutletAssignment> assignments) {
