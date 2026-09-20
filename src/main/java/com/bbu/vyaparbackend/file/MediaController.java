@@ -8,11 +8,13 @@ import com.bbu.vyaparbackend.business.TenantAccess;
 import com.bbu.vyaparbackend.shared.ApiEndpoints;
 import com.bbu.vyaparbackend.shared.JsonKeys;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 
 @RestController
 @RequestMapping(ApiEndpoints.Media.ROOT)
@@ -41,17 +43,27 @@ public class MediaController {
         return media.businessLogo(actor);
     }
 
-    @PostMapping(value = ApiEndpoints.Media.PRODUCT_IMAGE, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    MediaApi.FileResponse product(Authentication authentication, @PathVariable String outletId,
-                                  @PathVariable String productId, @RequestPart(JsonKeys.FILE) MultipartFile file) {
+    @PostMapping(value = ApiEndpoints.Media.PRODUCT_IMAGES, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    List<MediaApi.ProductImageResponse> productImages(Authentication authentication, @PathVariable String outletId,
+                                                       @PathVariable String productId,
+                                                       @RequestPart(JsonKeys.FILES) List<MultipartFile> files) {
         Outlet outlet = access.outlet(current.require(authentication), outletId, Role.OWNER, Role.MANAGER);
-        return media.replaceProductImage(outlet, productId, file);
+        return media.addProductImages(outlet, productId, files);
     }
 
-    @GetMapping(ApiEndpoints.Media.PRODUCT_IMAGE)
-    MediaApi.FileResponse product(Authentication authentication, @PathVariable String outletId,
-                                  @PathVariable String productId) {
+    @GetMapping(ApiEndpoints.Media.PRODUCT_IMAGES)
+    List<MediaApi.ProductImageResponse> productImages(Authentication authentication, @PathVariable String outletId,
+                                                       @PathVariable String productId) {
         Outlet outlet = access.outlet(current.require(authentication), outletId);
-        return media.productImage(outlet, productId);
+        return media.productImages(outlet, productId);
+    }
+
+    @DeleteMapping(ApiEndpoints.Media.PRODUCT_IMAGE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteProductImage(Authentication authentication, @PathVariable String outletId,
+                            @PathVariable String productId, @PathVariable String imageId) {
+        Outlet outlet = access.outlet(current.require(authentication), outletId, Role.OWNER, Role.MANAGER);
+        media.deleteProductImage(outlet, productId, imageId);
     }
 }

@@ -1,0 +1,47 @@
+package com.bbu.vyaparbackend.report;
+
+import com.bbu.vyaparbackend.business.Outlet;
+import com.bbu.vyaparbackend.order.SalesOrder;
+import com.bbu.vyaparbackend.shared.BaseEntity;
+import com.bbu.vyaparbackend.shared.PrefixedId;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+@Entity
+@Table(name = "outlet_order_summary_contribution",
+        uniqueConstraints = @UniqueConstraint(name = "uk_order_summary_contribution_order", columnNames = "order_id"))
+@Getter
+@Setter
+@NoArgsConstructor
+@PrefixedId("ordercontrib")
+class OutletOrderSummaryContribution extends BaseEntity {
+    @OneToOne(optional = false, fetch = FetchType.LAZY)
+    private SalesOrder order;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    private Outlet outlet;
+    @Column(nullable = false)
+    private Instant businessDayStartAt;
+    @Column(nullable = false)
+    private long appliedRevision;
+    @Column(nullable = false)
+    private long receivedOrders;
+    @Column(nullable = false)
+    private long completedOrders;
+    @Column(nullable = false)
+    private long cancelledOrders;
+    @Column(nullable = false, precision = 19, scale = 4)
+    private BigDecimal grossSales = BigDecimal.ZERO;
+    @Column(nullable = false, precision = 19, scale = 4)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+    @Column(nullable = false, precision = 19, scale = 4)
+    private BigDecimal refundAmount = BigDecimal.ZERO;
+    @Column(nullable = false, precision = 19, scale = 4)
+    private BigDecimal netSales = BigDecimal.ZERO;
+    @Column(nullable = false, precision = 19, scale = 4)
+    private BigDecimal unpaidAmount = BigDecimal.ZERO;
+}

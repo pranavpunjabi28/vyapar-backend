@@ -38,7 +38,7 @@ public class ReceiptController {
     ReceiptApi.ReceiptView receipt(Authentication a, @PathVariable String outletId, @PathVariable String orderId) {
         Outlet o = access.outlet(current.require(a), outletId);
         SalesOrder order = closed(o, orderId);
-        return new ReceiptApi.ReceiptView(o.getBusiness().getName(), o.getName(), o.getAddress(), o.getBusiness().getGstin(), o.getBusiness().getFssai(), o.getCurrency(), o.getUpiId(), o.getReceiptFooter(), OrderMapper.toView(order, orders, payments));
+        return new ReceiptApi.ReceiptView(o.getBusiness().getName(), o.getName(), o.getAddress(), o.getBusiness().getGstin(), o.getBusiness().getFssai(), o.getCurrency(), o.getUpiId(), o.getReceiptFooter(), OrderMapper.toView(order, o, orders, payments));
     }
 
     @GetMapping(value = ApiEndpoints.Order.RECEIPT_PDF, produces = MediaType.APPLICATION_PDF_VALUE)

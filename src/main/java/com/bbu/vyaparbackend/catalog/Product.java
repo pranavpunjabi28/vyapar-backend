@@ -30,7 +30,6 @@ public class Product extends BaseEntity {
     private String description;
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal price;
-    private String imageKey;
     @Column(nullable = false)
     private boolean active = true;
 }

@@ -1,6 +1,8 @@
 package com.bbu.vyaparbackend.auth;
 
 import com.bbu.vyaparbackend.shared.ErrorMessages;
+import com.bbu.vyaparbackend.shared.JsonKeys;
+import com.bbu.vyaparbackend.shared.RequestLogContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -44,6 +46,9 @@ public class SecurityProblemHandler implements AuthenticationEntryPoint, AccessD
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(status, message);
         detail.setTitle(code);
         detail.setType(URI.create(PROBLEM_TYPE_ROOT + code));
+        if (RequestLogContext.requestId() != null) {
+            detail.setProperty(JsonKeys.REQUEST_ID, RequestLogContext.requestId());
+        }
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         objectMapper.writeValue(response.getOutputStream(), detail);

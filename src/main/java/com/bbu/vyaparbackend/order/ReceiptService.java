@@ -20,6 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ReceiptService {
@@ -42,8 +43,19 @@ public class ReceiptService {
                 y = line(c, regular, 10, 50, y - 4, outlet.getName() + " | " + nullable(outlet.getPhone()));
                 y = line(c, regular, 10, 50, y, "Invoice: " + order.getInvoiceNumber() + "    Date: " + order.getClosedAt());
                 y = line(c, bold, 11, 50, y - 8, "Item                                      Qty       Price       Amount");
-                for (OrderItem i : orders.items(order.getId()))
+                List<OrderItem> receiptItems = orders.items(order.getId());
+                Map<String, List<OrderItemAddon>> addonsByItem = orders.addonsByOrderItemIds(
+                        receiptItems.stream().map(OrderItem::getId).toList());
+                for (OrderItem i : receiptItems) {
                     y = line(c, regular, 10, 50, y, String.format("%-38s %7s %11s %11s", truncate(i.getProductName(), 36), i.getQuantity(), i.getUnitPrice(), i.getLineTotal()));
+                    for (OrderItemAddon addon : addonsByItem.getOrDefault(i.getId(), List.of())) {
+                        y = line(c, regular, 9, 62, y, "+ " + truncate(addon.getOptionName(), 34)
+                                + "  " + addon.getUnitPrice());
+                    }
+                    if (i.getNote() != null && !i.getNote().isBlank()) {
+                        y = line(c, regular, 9, 62, y, "Note: " + truncate(i.getNote(), 50));
+                    }
+                }
                 y = line(c, regular, 10, 50, y - 5, "Subtotal: " + order.getSubtotal());
                 y = line(c, regular, 10, 50, y, "Discount: " + order.getDiscountAmount());
                 y = line(c, bold, 12, 50, y, "Total: " + order.getTotal());

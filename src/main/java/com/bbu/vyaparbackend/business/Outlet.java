@@ -31,4 +31,11 @@ public class Outlet extends BaseEntity {
     private String receiptFooter;
     @Column(nullable = false)
     private long nextInvoiceNumber = 1;
+    @Column(nullable = false)
+    private long nextOrderNumber = 1;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private OrderCancellationPolicy preparingOrderCancellationPolicy = OrderCancellationPolicy.ALWAYS;
+    @Column(nullable = false)
+    private int preparingOrderCancellationMinutes = 10;
 }

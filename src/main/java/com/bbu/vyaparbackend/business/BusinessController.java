@@ -3,6 +3,7 @@ package com.bbu.vyaparbackend.business;
 import com.bbu.vyaparbackend.auth.CurrentUser;
 import com.bbu.vyaparbackend.shared.ApiEndpoints;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +28,7 @@ public class BusinessController {
     }
 
     @PostMapping(ApiEndpoints.Business.BUSINESSES)
+    @ResponseStatus(HttpStatus.CREATED)
     BusinessApi.BusinessView create(Authentication authentication,
                                     @Valid @RequestBody BusinessApi.BusinessRequest request) {
         return BusinessMapper.toView(businesses.create(current.require(authentication), request.toCommand()));
@@ -37,11 +39,22 @@ public class BusinessController {
         return businesses.memberships(current.require(authentication)).stream().map(BusinessMapper::toView).toList();
     }
 
+    @GetMapping(ApiEndpoints.Business.BUSINESS)
+    BusinessApi.BusinessView business(Authentication authentication, @PathVariable String id) {
+        return BusinessMapper.toView(access.business(current.require(authentication), id).getBusiness());
+    }
+
     @PutMapping(ApiEndpoints.Business.BUSINESS)
     BusinessApi.BusinessView update(Authentication authentication, @PathVariable String id,
                                     @Valid @RequestBody BusinessApi.BusinessRequest request) {
         Membership actor = access.business(current.require(authentication), id, Role.OWNER);
         return BusinessMapper.toView(businesses.update(actor, request.toCommand()));
+    }
+
+    @DeleteMapping(ApiEndpoints.Business.BUSINESS)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void archiveBusiness(Authentication authentication, @PathVariable String id) {
+        businesses.archive(access.business(current.require(authentication), id, Role.OWNER));
     }
 
     @GetMapping(ApiEndpoints.Business.OUTLETS)
@@ -51,10 +64,16 @@ public class BusinessController {
     }
 
     @PostMapping(ApiEndpoints.Business.OUTLETS)
+    @ResponseStatus(HttpStatus.CREATED)
     BusinessApi.OutletView createOutlet(Authentication authentication, @PathVariable String id,
                                         @Valid @RequestBody BusinessApi.OutletRequest request) {
         Membership actor = access.business(current.require(authentication), id, Role.OWNER);
         return BusinessMapper.toView(outlets.create(actor, request.toCommand()));
+    }
+
+    @GetMapping(ApiEndpoints.Business.OUTLET)
+    BusinessApi.OutletView outlet(Authentication authentication, @PathVariable String id) {
+        return BusinessMapper.toView(access.outlet(current.require(authentication), id));
     }
 
     @PutMapping(ApiEndpoints.Business.OUTLET)
@@ -65,6 +84,7 @@ public class BusinessController {
     }
 
     @DeleteMapping(ApiEndpoints.Business.OUTLET)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     void archive(Authentication authentication, @PathVariable String id) {
         outlets.archive(access.outlet(current.require(authentication), id, Role.OWNER));
     }

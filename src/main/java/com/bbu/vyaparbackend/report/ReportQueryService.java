@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Comparator;
 import java.util.Set;
 
 import static com.bbu.vyaparbackend.shared.Pageables.requireAllowedSort;
@@ -28,11 +29,14 @@ public class ReportQueryService {
     private final OrderQueryService orders;
     private final CatalogQueryService catalog;
     private final InventoryLedgerService inventory;
+    private final OutletDailySummaryRepository dailySummaries;
 
-    public ReportQueryService(OrderQueryService orders, CatalogQueryService catalog, InventoryLedgerService inventory) {
+    public ReportQueryService(OrderQueryService orders, CatalogQueryService catalog, InventoryLedgerService inventory,
+                              OutletDailySummaryRepository dailySummaries) {
         this.orders = orders;
         this.catalog = catalog;
         this.inventory = inventory;
+        this.dailySummaries = dailySummaries;
     }
 
     @Transactional(readOnly = true)
@@ -63,37 +67,87 @@ public class ReportQueryService {
 
     @Transactional(readOnly = true)
     public ReportApi.Dashboard dashboard(Outlet outlet) {
+        return new ReportApi.Dashboard(dashboardSummary(outlet), dashboardInsights(outlet));
+    }
+
+    @Transactional(readOnly = true)
+    public ReportApi.DashboardSummary dashboardSummary(Outlet outlet) {
         ZoneId zone = ZoneId.of(outlet.getTimezone());
         LocalDate today = LocalDate.now(zone);
         Instant todayStart = today.atStartOfDay(zone).toInstant();
         Instant tomorrow = today.plusDays(1).atStartOfDay(zone).toInstant();
-        Instant yesterday = today.minusDays(1).atStartOfDay(zone).toInstant();
-        ReportApi.Summary todaySummary = summary(outlet, todayStart, tomorrow);
-        ReportApi.Summary yesterdaySummary = summary(outlet, yesterday, todayStart);
+        Instant yesterdayStart = today.minusDays(1).atStartOfDay(zone).toInstant();
+        OutletDailySummary todayRow = dailySummaries.findByOutletIdAndBusinessDayStartAt(outlet.getId(), todayStart)
+                .orElse(null);
+        OutletDailySummary yesterdayRow = dailySummaries
+                .findByOutletIdAndBusinessDayStartAt(outlet.getId(), yesterdayStart).orElse(null);
+        ReportApi.DailyMetrics todayMetrics = dailyMetrics(todayRow);
+        ReportApi.DailyMetrics yesterdayMetrics = dailyMetrics(yesterdayRow);
+        List<ReportApi.RecentOrder> recent = orders.recentSubmitted(outlet, today).stream()
+                .map(order -> new ReportApi.RecentOrder(order.getId(), order.getOrderNumber(),
+                        order.getTableReference(), order.getStatus().name(), order.getPaymentStatus().name(),
+                        order.getTotal(), order.getDueAmount(), order.getCreatedAt()))
+                .toList();
+        Instant updatedAt = java.util.stream.Stream.of(todayRow, yesterdayRow).filter(java.util.Objects::nonNull)
+                .map(OutletDailySummary::getUpdatedAt).max(Comparator.naturalOrder()).orElse(null);
+        return new ReportApi.DashboardSummary(Instant.now(), updatedAt, !outlet.isArchived(), todayMetrics,
+                yesterdayMetrics, comparisons(todayMetrics, yesterdayMetrics), recent);
+    }
+
+    @Transactional(readOnly = true)
+    public ReportApi.DashboardInsights dashboardInsights(Outlet outlet) {
+        ZoneId zone = ZoneId.of(outlet.getTimezone());
+        LocalDate today = LocalDate.now(zone);
+        Instant tomorrow = today.plusDays(1).atStartOfDay(zone).toInstant();
         LocalDate currentMonthStart = today.withDayOfMonth(1);
         LocalDate previousMonthStart = currentMonthStart.minusMonths(1);
-        ReportApi.Summary currentMonth = summary(outlet, currentMonthStart.atStartOfDay(zone).toInstant(), tomorrow);
-        ReportApi.Summary previousMonth = summary(outlet, previousMonthStart.atStartOfDay(zone).toInstant(),
-                currentMonthStart.atStartOfDay(zone).toInstant());
+        Instant currentStart = currentMonthStart.atStartOfDay(zone).toInstant();
+        Instant previousStart = previousMonthStart.atStartOfDay(zone).toInstant();
+        ReportApi.PeriodMetrics currentMonth = period(dailySummaries
+                .findAllByOutletIdAndBusinessDayStartAtGreaterThanEqualAndBusinessDayStartAtLessThanOrderByBusinessDayStartAt(
+                        outlet.getId(), currentStart, tomorrow), today.getDayOfMonth());
+        ReportApi.PeriodMetrics previousMonth = period(dailySummaries
+                .findAllByOutletIdAndBusinessDayStartAtGreaterThanEqualAndBusinessDayStartAtLessThanOrderByBusinessDayStartAt(
+                        outlet.getId(), previousStart, currentStart), previousMonthStart.lengthOfMonth());
+        ReportApi.PeriodMetrics lifetimePeriod = period(dailySummaries.findAllByOutletId(outlet.getId()), 1);
+        ReportApi.LifetimeMetrics lifetime = new ReportApi.LifetimeMetrics(lifetimePeriod.netSales(),
+                lifetimePeriod.completedOrders(), lifetimePeriod.refunds(),
+                averageOrderValue(lifetimePeriod.netSales(), lifetimePeriod.completedOrders()));
         List<ReportApi.ItemRow> bestSellers = items(outlet, today.minusDays(6).atStartOfDay(zone).toInstant(), tomorrow,
                 org.springframework.data.domain.PageRequest.of(0, 5)).getContent();
-        List<ReportApi.StockRow> warnings = inventory.stockWarnings(outlet, 100).stream()
-                .map(row -> new ReportApi.StockRow(row.ingredientId(), row.ingredientName(), row.unit(), row.quantity(),
-                        row.lowStockThreshold(), row.quantity().signum() < 0 ? "NEGATIVE"
-                        : row.quantity().signum() == 0 ? "OUT_OF_STOCK" : "LOW", java.util.Map.of()))
-                .toList();
-        return new ReportApi.Dashboard(todaySummary, yesterdaySummary,
-                average(currentMonth, today.getDayOfMonth()), average(previousMonth, previousMonthStart.lengthOfMonth()),
-                bestSellers, warnings);
+        return new ReportApi.DashboardInsights(Instant.now(), currentMonth, previousMonth,
+                percentage(currentMonth.dailyAverage(), previousMonth.dailyAverage()), lifetime, bestSellers);
     }
 
-    private ReportApi.Summary summary(Outlet outlet, Instant from, Instant to) {
-        OrderQueryService.Summary summary = orders.summary(outlet, from, to);
-        return new ReportApi.Summary(summary.orders(), summary.sales());
+    private ReportApi.DailyMetrics dailyMetrics(OutletDailySummary row) {
+        if (row == null) return new ReportApi.DailyMetrics(BigDecimal.ZERO, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO);
+        return new ReportApi.DailyMetrics(row.getNetSales(), row.getReceivedOrders(), row.getCompletedOrders(),
+                averageOrderValue(row.getNetSales(), row.getCompletedOrders()), row.getUnpaidAmount());
     }
 
-    private ReportApi.Average average(ReportApi.Summary summary, int days) {
-        return new ReportApi.Average(div(summary.sales(), days), div(BigDecimal.valueOf(summary.orders()), days));
+    private ReportApi.Comparisons comparisons(ReportApi.DailyMetrics today, ReportApi.DailyMetrics yesterday) {
+        return new ReportApi.Comparisons(percentage(today.netSales(), yesterday.netSales()),
+                percentage(BigDecimal.valueOf(today.receivedOrders()), BigDecimal.valueOf(yesterday.receivedOrders())),
+                percentage(BigDecimal.valueOf(today.completedOrders()), BigDecimal.valueOf(yesterday.completedOrders())),
+                percentage(today.averageOrderValue(), yesterday.averageOrderValue()));
+    }
+
+    private ReportApi.PeriodMetrics period(List<OutletDailySummary> rows, int calendarDays) {
+        BigDecimal net = rows.stream().map(OutletDailySummary::getNetSales).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal refunds = rows.stream().map(OutletDailySummary::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long completed = rows.stream().mapToLong(OutletDailySummary::getCompletedOrders).sum();
+        return new ReportApi.PeriodMetrics(net, completed, refunds, div(net, calendarDays));
+    }
+
+    private BigDecimal averageOrderValue(BigDecimal sales, long orders) {
+        return orders == 0 ? BigDecimal.ZERO : sales.divide(BigDecimal.valueOf(orders), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal percentage(BigDecimal current, BigDecimal previous) {
+        if (previous.signum() == 0) return null;
+        return current.subtract(previous).divide(previous.abs(), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal div(BigDecimal value, int divisor) {

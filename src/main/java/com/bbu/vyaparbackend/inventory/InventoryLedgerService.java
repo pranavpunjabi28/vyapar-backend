@@ -116,6 +116,14 @@ public class InventoryLedgerService {
         }
     }
 
+    @Transactional
+    public void reverseSale(Outlet outlet, String orderId) {
+        for (InventoryMovement sale : movements.orderSales(outlet.getId(), orderId)) {
+            move(outlet, sale.getIngredient(), MovementType.SALE_REVERSAL, sale.getQuantity().negate(),
+                    "ORDER_CANCELLATION", orderId, sale.getNote());
+        }
+    }
+
     public record StockMetrics(BigDecimal quantity, Map<String, BigDecimal> movementTotals) {
     }
 

@@ -11,4 +11,8 @@ public final class MediaApi {
             return new FileResponse(object.key(), object.downloadUrl(), object.expiresAt());
         }
     }
+
+    public record ProductImageResponse(String id, String key, String downloadUrl, Instant expiresAt,
+                                       int displayOrder) {
+    }
 }

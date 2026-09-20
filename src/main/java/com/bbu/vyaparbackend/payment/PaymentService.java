@@ -5,6 +5,9 @@ import com.bbu.vyaparbackend.order.OrderCommands;
 import com.bbu.vyaparbackend.order.PaymentStatus;
 import com.bbu.vyaparbackend.order.SalesOrder;
 import com.bbu.vyaparbackend.shared.ApiException;
+import com.bbu.vyaparbackend.shared.LogMessages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +19,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class PaymentService {
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
     private final PaymentRepository payments;
     private final OrderCalculator calculator;
 
@@ -49,7 +54,9 @@ public class PaymentService {
         payment.setAmount(calculator.money(command.amount()));
         payment.setCustomMethod(command.customMethod());
         payment.setReference(command.reference());
-        return payments.save(payment);
+        Payment saved = payments.save(payment);
+        log.info(LogMessages.PAYMENT_RECORDED, saved.getId(), order.getId(), saved.getMethod(), saved.getAmount());
+        return saved;
     }
 
     @Transactional
@@ -58,7 +65,8 @@ public class PaymentService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         order.setPaidAmount(calculator.money(paid));
         order.setDueAmount(calculator.money(order.getTotal().subtract(paid)));
-        order.setPaymentStatus(paid.signum() == 0 ? PaymentStatus.UNPAID
-                : paid.compareTo(order.getTotal()) < 0 ? PaymentStatus.PARTIALLY_PAID : PaymentStatus.PAID);
+        order.setPaymentStatus(order.getTotal().signum() == 0 || paid.compareTo(order.getTotal()) >= 0
+                ? PaymentStatus.PAID
+                : paid.signum() == 0 ? PaymentStatus.UNPAID : PaymentStatus.PARTIALLY_PAID);
     }
 }

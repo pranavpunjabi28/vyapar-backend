@@ -65,12 +65,22 @@ public class ReportController {
         Pageable safe = Pageables.requireAllowedSort(pageable, ORDER_SORTS,
                 Sort.by(Sort.Direction.DESC, "createdAt"));
         return PageResponse.from(OrderMapper.toViews(
-                orders.report(outlet, status, from, to, customerId, paymentMethod, safe), orders, payments));
+                orders.report(outlet, status, from, to, customerId, paymentMethod, safe), outlet, orders, payments));
     }
 
     @GetMapping(ApiEndpoints.Report.DASHBOARD)
     ReportApi.Dashboard dashboard(Authentication authentication, @PathVariable String outletId) {
         return reports.dashboard(outlet(authentication, outletId));
+    }
+
+    @GetMapping(ApiEndpoints.Report.DASHBOARD_SUMMARY)
+    ReportApi.DashboardSummary dashboardSummary(Authentication authentication, @PathVariable String outletId) {
+        return reports.dashboardSummary(outlet(authentication, outletId));
+    }
+
+    @GetMapping(ApiEndpoints.Report.DASHBOARD_INSIGHTS)
+    ReportApi.DashboardInsights dashboardInsights(Authentication authentication, @PathVariable String outletId) {
+        return reports.dashboardInsights(outlet(authentication, outletId));
     }
 
     @GetMapping(ApiEndpoints.Report.ITEMS)
